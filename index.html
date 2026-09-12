@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工银颐享 Agent · 长辈守护语言导航 Demo</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="stage">
+  <aside class="side side-left">
+    <div class="brand">
+      <div class="logo">国</div>
+      <div>
+        <h1>工银颐享 Agent</h1>
+        <p>长辈守护语言导航模式 · 演示原型</p>
+      </div>
+    </div>
+    <div class="role-switch">
+      <button id="btnElder" class="role on">长辈端</button>
+      <button id="btnKids" class="role">子女端</button>
+    </div>
+    <div class="panel-box">
+      <h3>自动演示</h3>
+      <div class="auto-row">
+        <button class="auto-go" id="btnAuto">▶ 开始自动演示</button>
+        <button class="auto-stop" id="btnAutoStop">■ 停止</button>
+      </div>
+      <p class="mini">按脚本自动走完:语音导航 → 双层防护 → 反诈 → 本人授权 → 子女处置与规划测算 → 亲情反哺。约 2 分钟,可随时停止;刷新页面后重新开始。</p>
+    </div>
+    <div class="panel-box">
+      <h3>语音命令 · 点一下模拟长辈开口</h3>
+      <div class="cmd-grid">
+        <button class="cmdbtn" data-cmd="听我说钱">听我说钱</button>
+        <button class="cmdbtn" data-cmd="我要转钱">我要转钱</button>
+        <button class="cmdbtn" data-cmd="存养老金">存养老金</button>
+        <button class="cmdbtn" data-cmd="重要提醒">重要提醒</button>
+        <button class="cmdbtn" data-cmd="问问反诈">问问反诈</button>
+        <button class="cmdbtn" data-cmd="亲情守护开关">亲情守护</button>
+        <button class="cmdbtn" data-cmd="再说一遍">再说一遍</button>
+        <button class="cmdbtn" data-cmd="慢一点说">慢一点说</button>
+        <button class="cmdbtn" data-cmd="大声一点">大声一点</button>
+        <button class="cmdbtn" data-cmd="暂停语音">暂停语音</button>
+        <button class="cmdbtn" data-cmd="继续语音">继续语音</button>
+        <button class="cmdbtn" data-cmd="回家">回家</button>
+      </div>
+    </div>
+    <div class="panel-box">
+      <h3>演示脚本</h3>
+      <ol>
+        <li>点手机屏「开始语音导航」,全程中文语音讲解</li>
+        <li>点屏幕下方蓝色话筒,说「听我说钱」(或点左侧模拟)</li>
+        <li>说「我要转钱」:选「网上认识的李女士」填 80000,看双层温柔防护</li>
+        <li>说「存养老金」:分步引导 + 本人确认,存钱是好事</li>
+        <li>说「问问反诈」:点大按钮“稳赚高利息”,自动向子女同步预警</li>
+        <li>说「亲情守护」:由长辈本人打开给孩子的提醒开关</li>
+        <li>切子女端:风险预警 + 误报过滤漏斗、处置闭环</li>
+        <li>子女端「养老规划」:缺口推演 + 税优测算 + 人生事件动态调整</li>
+        <li>子女端「亲情陪护」:陪学反诈攒积分、共建备忘录、网点预约、权益兑换</li>
+        <li>切回长辈端:收到孩子卡片自动语音念出,备忘录出现在重要提醒</li>
+        <li>加分项:长辈端首页一键呼叫儿子/95588/96110;子女网点预约自动出现在父亲首页</li>
+      </ol>
+    </div>
+    <div class="panel-box">
+      <h3>声音设置</h3>
+      <label class="field">语速 <input type="range" id="rateRange" min="0.5" max="1.2" step="0.05" value="0.9"> <span id="rateVal">0.9</span></label>
+      <label class="field">音量 <input type="range" id="volRange" min="0" max="1" step="0.1" value="1"></label>
+      <label class="field">风格
+        <select id="dialectSel">
+          <option value="mandarin">普通话</option>
+          <option value="sichuan">川味短句</option>
+        </select>
+      </label>
+      <p class="mini">请使用 Edge / Chrome 打开以获得语音合成与语音识别;识别不可用时,用左侧命令按钮完整演示同一链路。</p>
+    </div>
+  </aside>
+
+  <div class="phone-col">
+    <div class="app-top">工银颐享 Agent · 「工行杯」养老金融赛题演示</div>
+  <div class="phone">
+    <div class="boot" id="boot">
+      <div class="boot-inner">
+        <div class="logo big">国</div>
+        <h2>中国工商银行</h2>
+        <p class="slogan">长辈关爱专区 · 大字 · 零弹窗 · 动口不动手</p>
+        <button id="btnStart">开始语音导航</button>
+      </div>
+    </div>
+    <div class="notch"></div>
+    <div class="appbar" id="appbar"></div>
+    <div class="screen" id="screen"></div>
+    <div class="caption idle" id="captionBar"><span class="eq" id="eq"><i></i><i></i><i></i><i></i></span></div>
+    <div class="voice-dock" id="voiceDock">
+      <button class="mic-round" id="micCmd" title="点这里说命令">
+        <svg viewBox="0 0 24 24" width="34" height="34" fill="#fff"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+      </button>
+      <div class="vd-text">
+        <b>按一下,说出来就行</b>
+        <span id="vdHint"></span>
+      </div>
+    </div>
+    <button class="repeat-fab" id="btnRepeat">再说<br>一遍</button>
+    <nav class="tabbar" id="tabbar"></nav>
+    <div class="toast" id="toast"></div>
+    <div class="home-bar"></div>
+    <div class="modal-root" id="modalRoot" hidden></div>
+  </div>
+  </div>
+
+  <aside class="side side-right">
+    <div class="panel-box grow">
+      <h3>系统播报 / 风控与亲情链路日志</h3>
+      <div class="log" id="log"></div>
+    </div>
+  </aside>
+</div>
+<script src="js/speech.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
