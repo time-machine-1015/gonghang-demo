@@ -104,9 +104,10 @@ function addRiskEvent(ev) {
 
 /* ---------------- plan helpers ---------------- */
 function fmtWan(n) { return n >= 10000 ? (n / 10000).toFixed(1) + " 万" : Math.round(n) + " 元"; }
-function barRow(label, val, total, bg) {
+function barRow(label, val, total, bg, fmt) {
   const w = total > 0 ? Math.max(2, Math.min(100, Math.round(val / total * 100))) : 2;
-  return `<div class="bar-row"><span class="bar-label">${label}</span><div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${bg}"></div></div><span class="bar-val">${Math.round(val)}</span></div>`;
+  const v = fmt ? fmt(val) : String(Math.round(val));
+  return `<div class="bar-row"><span class="bar-label">${label}</span><div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${bg}"></div></div><span class="bar-val">${v}</span></div>`;
 }
 function planCalc() {
   const p = state.plan;
@@ -186,7 +187,7 @@ function updateTabs() {
       const n = state.auth ? state.events.filter(e => !e.seen).length : 0;
       if (n) dot = `<span class="dot">${n}</span>`;
     }
-    return `<button class="tab ${cur === id ? "on" : ""}" data-act="tab" data-id="${id}">${name}${dot}</button>`;
+    return `<button class="tab ${cur === id ? "on" : ""}" data-act="tab" data-id="${id}"${cur === id ? ' aria-current="page"' : ""}>${name}${dot}</button>`;
   }).join("");
 }
 
@@ -530,9 +531,9 @@ const SCREENS = {
             <text x="50" y="66" text-anchor="middle" class="ring-lb">覆盖率</text>
           </svg>
           <div style="flex:1">
-            ${barRow("第一支柱·基本养老保险", g.p1, g.need, "linear-gradient(90deg,#9db4d8,#6d8cc0)")}
-            ${barRow("第二支柱·年金", g.p2, g.need, "linear-gradient(90deg,#c8b0e8,#9a76cf)")}
-            ${barRow("第三支柱+自有储备", g.fv, g.need, "linear-gradient(90deg,#16b077,#0e8a5c)")}
+            ${barRow("第一支柱·基本养老保险", g.p1, g.need, "linear-gradient(90deg,#9db4d8,#6d8cc0)", fmtWan)}
+            ${barRow("第二支柱·年金", g.p2, g.need, "linear-gradient(90deg,#c8b0e8,#9a76cf)", fmtWan)}
+            ${barRow("第三支柱+自有储备", g.fv, g.need, "linear-gradient(90deg,#16b077,#0e8a5c)", fmtWan)}
           </div>
         </div>
         <p style="font-size:13px;margin-top:8px">仍有缺口 <b style="color:var(--brand)">${fmtWan(g.gap)}</b></p>
@@ -572,9 +573,9 @@ const SCREENS = {
         <h4>家庭备忘录共建${state.auth ? "" : '<span class="pill gray">需父亲授权</span>'}</h4>
         <p style="font-size:12px;color:var(--sub)">您添加的备忘会出现在父亲「重要提醒」里,标着“孩子记的”,他能听也能删。</p>
         ${state.auth ? `
-          <input class="input p-in-memo" id="memoInput" placeholder="例如:12月10日带爸去测血压" data-inp="memo" style="margin-top:8px">
+          <input class="input p-in-memo" id="memoInput" placeholder="例如:12月10日带爸去测血压" data-inp="memo" aria-label="备忘内容" style="margin-top:8px">
           <button class="btn small primary" style="margin-top:8px" data-act="memoAdd">添加到父亲提醒</button>
-          ${state.memos.map((m, i) => `<div class="memo-row"><span>${esc(m.body)}</span><button class="btn small" data-act="memoDelK" data-id="${i}" style="min-height:36px;padding:6px 10px">撤回</button></div>`).join("")}`
+          ${state.memos.map((m, i) => `<div class="memo-row"><span>${esc(m.body)}</span><button class="btn small" data-act="memoDelK" data-id="${i}" style="min-height:44px;padding:6px 12px">撤回</button></div>`).join("")}`
         : `<p style="font-size:13px;color:var(--sub);margin-top:6px">父亲开启授权后,这里就可以和他共建备忘。</p>`}
       </div>
       <div class="card">
@@ -588,9 +589,9 @@ const SCREENS = {
       <div class="card">
         <h4>网点兜底 · 帮父亲预约</h4>
         <p style="font-size:12px;color:var(--sub)">手机弄不明白的事,约到网点,柜员面对面讲;预约单父亲端和网点后台都能看到。</p>
-        <select class="input p-in-sel" id="apptBranch">${APPT_BRANCHES.map(b => `<option>${b}</option>`).join("")}</select>
-        <select class="input p-in-sel" id="apptService" style="margin-top:6px">${APPT_SERVICES.map(s => `<option>${s}</option>`).join("")}</select>
-        <select class="input p-in-sel" id="apptDate" style="margin-top:6px">${APPT_DATES.map(d => `<option>${d}</option>`).join("")}</select>
+        <select class="input p-in-sel" id="apptBranch" aria-label="选择网点">${APPT_BRANCHES.map(b => `<option>${b}</option>`).join("")}</select>
+        <select class="input p-in-sel" id="apptService" style="margin-top:6px" aria-label="选择服务事项">${APPT_SERVICES.map(s => `<option>${s}</option>`).join("")}</select>
+        <select class="input p-in-sel" id="apptDate" style="margin-top:6px" aria-label="选择时间">${APPT_DATES.map(d => `<option>${d}</option>`).join("")}</select>
         <button class="btn small primary" style="margin-top:8px" data-act="apptBook">生成预约工单</button>
         ${state.appointments.map(a => `<div class="memo-row"><span>${esc(a.dt)} · ${esc(a.sv)} · ${esc(a.br)}<br>工单号 ${esc(a.id)}(已同步网点后台 + 父亲端)</span></div>`).join("")}
       </div>`;
