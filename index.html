@@ -62,6 +62,14 @@
       </ol>
     </div>
     <div class="panel-box">
+      <h3>引擎设置(可选)</h3>
+      <label class="field">LLM接口 <input id="llmUrl" placeholder="https://open.bigmodel.cn/api/paas/v4"></label>
+      <label class="field">API Key <input id="llmKey" type="password" placeholder="留空=仅本地模型"></label>
+      <label class="field">转写接口 <input id="asrUrl" placeholder="FunASR/Whisper 服务地址(选填)"></label>
+      <div class="auto-row"><button class="auto-go" id="btnEngSave">保存并启用</button><button class="auto-stop" id="btnEngClear">清除</button></div>
+      <p class="mini">默认本地引擎(离线可用):内置朴素贝叶斯反诈分类器。填 OpenAI 兼容接口后,「问问」由大模型作答,风险判定仍由本地分类器兜底;密钥只存本机浏览器。</p>
+    </div>
+    <div class="panel-box">
       <h3>声音设置</h3>
       <label class="field">语速 <input type="range" id="rateRange" min="0.5" max="1.2" step="0.05" value="0.9"> <span id="rateVal">0.9</span></label>
       <label class="field">音量 <input type="range" id="volRange" min="0" max="1" step="0.1" value="1"></label>
@@ -115,6 +123,8 @@
   </aside>
 </div>
 <script src="js/speech.js"></script>
+<script src="js/risk-model.js"></script>
+<script src="js/llm.js"></script>
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 </body>

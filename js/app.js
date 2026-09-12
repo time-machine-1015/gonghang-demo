@@ -29,7 +29,8 @@ const state = {
   appointments: [],
   gifts: [],
   pendingCall: null,
-  funnel: { aiBase: 21, filterBase: 17 },
+  funnel: RiskModel.funnel(),
+  modelCv: RiskModel.crossValidate(5),
 };
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -452,8 +453,8 @@ const SCREENS = {
       return `<div class="lock">${LOCK_SVG}父亲尚未开启亲情守护<br>风险预警不会同步给您<br><br>不授权不影响父亲的长辈守护全部基础功能<br>(隐私最小化,长辈随时可撤回)</div>`;
     }
     const pushed = state.events.length;
-    const rechecked = pushed + 2;
-    const ai = rechecked + state.funnel.filterBase;
+    const ai = state.funnel.first + pushed;
+    const rechecked = state.funnel.passed + pushed;
     const funnel = `
       <div class="card">
         <h4>误报过滤漏斗(双重校验)</h4>
@@ -461,7 +462,8 @@ const SCREENS = {
         ${barRow("银行风控复核通过", rechecked, ai, "linear-gradient(90deg,#f0a04b,#d97a06)")}
         ${barRow("已推送给您", pushed, ai, "linear-gradient(90deg,#e0183a,#8c0b20)")}
         ${barRow("低置信度被过滤", ai - rechecked, ai, "linear-gradient(90deg,#16b077,#0e8a5c)")}
-        <p style="font-size:12px;color:var(--sub);margin-top:6px">本周过滤率 ${Math.round((ai - rechecked) / ai * 100)}%,误报样本经人工复核后按周回流训练,持续降低打扰。</p>
+        <p style="font-size:12px;color:var(--sub);margin-top:6px">风控模型「${RiskModel.version}」:语料 ${state.funnel.corpus} 条 · 5 折交叉验证 准确率 ${(state.modelCv.acc * 100).toFixed(1)}% · 召回率 ${(state.modelCv.rec * 100).toFixed(1)}% · F1 ${(state.modelCv.f1 * 100).toFixed(1)}%</p>
+        <p style="font-size:12px;color:var(--sub)">漏斗与过滤率 ${Math.round((ai - rechecked) / ai * 100)}% 为模型对语料逐条判定的真实计算结果;低置信样本只记录、不打扰子女端。</p>
       </div>`;
     const days = ["一", "二", "三", "四", "五", "六", "日"];
     const vals = [0.18, 0.42, 0.1, 0.6, 0.26, 0, pushed > 0 ? Math.min(1, 0.34 + pushed * 0.18) : 0.06];
@@ -886,30 +888,32 @@ function sendCard(id) {
 function sendChat(text) {
   state.chat.push({ me: true, text });
   render();
-  setTimeout(() => {
-    let rule = CHAT_RULES.find(r => r.keys.some(k => text.includes(k)));
-    let reply;
-    if (!rule) {
-      reply = "我先把这句话记下了。凡是让您“马上转钱、别告诉家人”的,都要当心。要不您把事情经过慢慢说给我听?也可以点下面灰色的常见问题。";
-    } else {
-      reply = rule.reply;
-      if (rule.risk) {
-        state.fraudHits++;
-        logLine("event", `[反诈] 捕捉到疑似诈骗信号(第 ${state.fraudHits} 次)`);
-        if (state.fraudHits === 1) {
-          addRiskEvent({ title: "咨询疑似养老诈骗信息", brief: rule.event.brief, ai: rule.event.ai, advice: rule.event.advice });
-        } else if (state.fraudHits === 2) {
-          addRiskEvent({ title: "多次触发系统反诈预警", brief: "短时间内两次触及高危诈骗话术关键词", ai: "重复咨询高危话题,被深度话术影响的可能性上升(已过银行风控二次校验)。", advice: "建议今明两天多联系老人,聊点别的,观察情绪,必要时协助下载国家反诈中心 App。" });
-        }
+  Engine.decide(text, state).then(d => setTimeout(() => {
+    if (d.trace) d.trace.forEach(t => logLine("voice", "[编排] " + t));
+    if (d.risk) {
+      state.fraudHits++;
+      const b = d.riskBasis || {};
+      logLine("event", `[反诈] 分类器涉诈概率 ${Math.round((b.p || 0) * 100)}% · 银行风控规则复核${b.layer2 ? "命中:" + (b.ruleHits || []).join("/") : "未触发"}(第 ${state.fraudHits} 次)`);
+      if (state.fraudHits === 1) {
+        const ev = (d.source !== "llm" && d.riskBasis && d.riskBasis.rule)
+          ? d.riskBasis.rule.event
+          : {
+              brief: "对话中出现模型判定的高危话术(涉诈概率 " + Math.round((b.p || 0) * 100) + "%)",
+              ai: "分类器依据特征 " + (b.top || []).map(t => "「" + t.g + "」").join("") + " 判定涉诈;银行风控规则" + (b.layer2 ? "复核命中:" + (b.ruleHits || []).join("/") : "未命中,仅记录") + "。",
+              advice: "先关心后求证:问问对方是谁、怎么认识的,别急着否定。拿不准就陪老人带材料去网点,或拨打 96110。",
+            };
+        addRiskEvent({ title: "咨询疑似诈骗信息", brief: ev.brief, ai: ev.ai, advice: ev.advice });
+      } else if (state.fraudHits === 2) {
+        addRiskEvent({ title: "多次触发系统反诈预警", brief: "短时间内两次触及高危诈骗话术关键词", ai: "重复咨询高危话题,被深度话术影响的可能性上升(已过银行风控二次校验)。", advice: "建议今明两天多联系老人,聊点别的,观察情绪,必要时协助下载国家反诈中心 App。" });
       }
     }
-    state.chat.push({ me: false, text: reply });
+    state.chat.push({ me: false, text: d.reply });
     if (state.pageElder === "chat" && state.role === "elder") {
       render();
       $("#chatList") && ($("#chatList").scrollTop = $("#chatList").scrollHeight);
-      say(reply, { slow: state.fraudHits > 0 });
+      say(d.reply, { slow: state.fraudHits > 0 });
     }
-  }, 700);
+  }, 500));
 }
 
 function bannerProductWarn() {
@@ -1181,6 +1185,33 @@ async function autoDemo() {
 }
 $("#btnAuto").addEventListener("click", autoDemo);
 $("#btnAutoStop").addEventListener("click", autoStop);
+
+/* ---------------- 引擎接线 ---------------- */
+(function engineSetup() {
+  const u = $("#llmUrl"), k = $("#llmKey"), a = $("#asrUrl");
+  if (!u) return;
+  const c = EngineConfig.get();
+  if (c.llm) { u.value = c.llm.endpoint || ""; k.value = c.llm.apiKey || ""; }
+  if (c.asr) a.value = c.asr.endpoint || "";
+  $("#btnEngSave").addEventListener("click", () => {
+    EngineConfig.set({ llm: { endpoint: u.value.trim(), apiKey: k.value.trim(), model: "glm-4-flash" }, asr: { endpoint: a.value.trim() } });
+    const mode = u.value.trim() ? "大模型(LLM)" : "本地分类器";
+    logLine("voice", "[引擎] 已切换:" + mode + (a.value.trim() ? " + 远程语音转写" : ""));
+    toast("引擎设置已保存:" + mode);
+  });
+  $("#btnEngClear").addEventListener("click", () => {
+    u.value = ""; k.value = ""; a.value = "";
+    EngineConfig.set({});
+    logLine("voice", "[引擎] 已清除,回到本地引擎");
+    toast("已清除,使用本地引擎");
+  });
+  const cv = state.modelCv;
+  Engine.probeServer().then(ok => {
+    logLine(ok ? "good" : "voice", ok
+      ? "[引擎] 多智能体编排服务已连接:意图路由 → 风控合规 → 金融知识 → 适老关怀"
+      : `[引擎] 本地风控分类器就绪:「${RiskModel.version}」语料 ${RiskModel.corpusSize()} 条,5 折交叉验证 准确率 ${(cv.acc * 100).toFixed(1)}% / 召回率 ${(cv.rec * 100).toFixed(1)}%`);
+  });
+})();
 
 if (location.search.includes("autotest")) {
   (async () => {
