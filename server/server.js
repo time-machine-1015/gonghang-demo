@@ -68,7 +68,7 @@ function orchestrate(text) {
   return { intent, reply, risk, riskBasis, trace, engine: RiskModel.version };
 }
 
-/* ---------------- 微信 XML ---------------- */
+/* ---------------- 微信公众号渠道 ---------------- */
 function xmlEscape(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function xmlGet(xml, tag) {
   const m = xml.match(new RegExp("<" + tag + ">(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</" + tag + ">"));
@@ -78,7 +78,46 @@ function checkSignature(qs) {
   if (!WECHAT_TOKEN) return true; // 未配置 token 时跳过(演示环境)
   const s = [WECHAT_TOKEN, qs.timestamp || "", qs.nonce || ""].sort().join("");
   return crypto.createHash("sha1").update(s).digest("hex") === (qs.signature || "");
-
+}
+// 微信 5 秒无响应会重试 3 次:按 MsgId 去重,避免同一条消息回复三遍
+const seenMsgs = new Map();
+function isDup(msgId) {
+  if (!msgId) return false;
+  const now = Date.now();
+  for (const [k, t] of seenMsgs) if (now - t > 120000) seenMsgs.delete(k);
+  if (seenMsgs.has(msgId)) return true;
+  seenMsgs.set(msgId, now);
+  return false;
+}
+const WELCOME = "欢迎关注工银颐享 · 长辈守护语言导航!您可以直接打字,也可以按住说话(语音会自动转成文字)。试试对我说:查余额、个人养老金怎么存,或者把可疑的话发来,我帮您把把关。";
+function wechatReply(xml) {
+  const from = xmlGet(xml, "FromUserName");
+  const to = xmlGet(xml, "ToUserName");
+  const msgType = xmlGet(xml, "MsgType");
+  const msgId = xmlGet(xml, "MsgId");
+  const wrap = content => `<xml><ToUserName><![CDATA[${xmlEscape(from)}]]></ToUserName><FromUserName><![CDATA[${xmlEscape(to)}]]></FromUserName><CreateTime>${Math.floor(Date.now() / 1000)}</CreateTime><MsgType><![CDATA[text]]></MsgType><Content><![CDATA[${xmlEscape(content)}]]></Content></xml>`;
+  if (msgType === "event") {
+    const ev = xmlGet(xml, "Event");
+    if (ev === "subscribe") return wrap(WELCOME);
+    return "success"; // 取消关注等事件不回复
+  }
+  if (isDup(msgId)) return "success"; // 重试消息不重复处理
+  let text = "";
+  if (msgType === "text") text = xmlGet(xml, "Content");
+  else if (msgType === "voice") {
+    text = xmlGet(xml, "Recognition"); // 微信自带语音转文字
+    if (!text) return wrap("您刚才发了一条语音,我这边没能转出文字。麻烦您再说一遍,或者直接打字发给我。");
+  } else if (msgType) {
+    return wrap("这类内容我暂时看不了。您打字或发语音,把事情说给我听,我帮您把把关。");
+  }
+  const r = orchestrate(text);
+  logWechat(from, text, r);
+  return wrap(r.reply);
+}
+const wechatLog = [];
+function logWechat(user, text, result) {
+  wechatLog.push({ time: new Date().toISOString().slice(11, 19), user: user.slice(0, 8) + "…", text: text.slice(0, 60), intent: result.intent, risk: result.risk, trace: result.trace });
+  if (wechatLog.length > 100) wechatLog.shift();
 }
 
 const MIME = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".md": "text/markdown; charset=utf-8", ".json": "application/json; charset=utf-8", ".png": "image/png" };
@@ -131,19 +170,22 @@ const server = http.createServer((req, res) => {
       return res.end(qs.echostr || "gonghang-echo");
     }
     if (req.method === "POST") {
+      if (!checkSignature(qs)) { res.writeHead(403); return res.end("forbidden"); }
       let body = "";
       req.on("data", c => body += c);
       req.on("end", () => {
-        const from = xmlGet(body, "FromUserName");
-        const to = xmlGet(body, "ToUserName");
-        const content = xmlGet(body, "Content");
-        const r = orchestrate(content || "你好");
-        const xml = `<xml><ToUserName><![CDATA[${xmlEscape(from)}]]></ToUserName><FromUserName><![CDATA[${xmlEscape(to)}]]></FromUserName><CreateTime>${Math.floor(Date.now() / 1000)}</CreateTime><MsgType><![CDATA[text]]></MsgType><Content><![CDATA[${xmlEscape(r.reply)}]]></Content></xml>`;
+        let out = "success";
+        try { out = wechatReply(body); } catch (e) { out = "success"; }
         res.writeHead(200, { "Content-Type": "application/xml; charset=utf-8" });
-        res.end(xml);
+        res.end(out);
       });
       return;
     }
+  }
+
+  if (p === "/api/wechat-log") {
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    return res.end(JSON.stringify(wechatLog.slice().reverse()));
   }
 
   // 静态托管

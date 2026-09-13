@@ -246,7 +246,7 @@
       })
       .sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))
       .slice(0, 3)
-      .map(([g, v]) => ({ g, v: +v.toFixed(2) }));
+      .map(([g, v]) => ({ g: g.replace(/^KW:/, ""), v: +v.toFixed(2) }));
     return { label: p >= 0.5 ? "scam" : "normal", p: +p.toFixed(4), top };
   }
 

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>微信渠道模拟器 · 工银颐享 Agent</title>
+<style>
+:root { --blue: #1d4ed8; --line: #e4e8f1; --ink: #1c2436; --sub: #7c86a0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; color: var(--ink); background: linear-gradient(168deg, #f3f5f9, #e9edf3); min-height: 100vh; padding: 20px; }
+.wrap { max-width: 980px; margin: 0 auto; display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.panel { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: 0 5px 16px rgba(20,34,68,.06); }
+.left { flex: 1; min-width: 340px; }
+.right { width: 400px; flex: none; }
+h1 { font-size: 19px; margin-bottom: 4px; }
+.sub { font-size: 12px; color: var(--sub); margin-bottom: 12px; line-height: 1.7; }
+.phone { width: 360px; height: 560px; margin: 0 auto; background: #ededed; border: 8px solid #0a0d14; border-radius: 30px; display: flex; flex-direction: column; overflow: hidden; }
+.chat-head { background: #ededed; border-bottom: 1px solid #dcdcdc; padding: 12px; text-align: center; font-size: 14px; font-weight: 700; }
+.chat { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 78%; padding: 9px 12px; border-radius: 12px; font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; }
+.msg.me { align-self: flex-end; background: #95ec69; border-end-end-radius: 3px; }
+.msg.bot { align-self: flex-start; background: #fff; border-end-start-radius: 3px; }
+.msg.sys { align-self: center; background: transparent; color: #9aa3b5; font-size: 11px; }
+.chat-input { display: flex; gap: 8px; padding: 10px; background: #f7f7f7; border-top: 1px solid #dcdcdc; }
+.chat-input input { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 9px 11px; font-size: 14px; }
+.chat-input button, .qbtn { border: 0; background: var(--blue); color: #fff; font-size: 13.5px; font-weight: 700; padding: 9px 16px; border-radius: 8px; cursor: pointer; }
+.quick { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
+.qbtn2 { border: 1px solid var(--line); background: #f7f9fd; color: var(--ink); font-size: 12.5px; padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+.qbtn2:hover { border-color: var(--blue); color: var(--blue); }
+.h3 { font-size: 14px; font-weight: 800; margin: 14px 0 8px; }
+.raw { font-family: Consolas, monospace; font-size: 11px; background: #0f172a; color: #a5f3c8; border-radius: 10px; padding: 10px; max-height: 180px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+.step { font-size: 12.5px; color: #45516b; line-height: 1.9; }
+.step b { color: var(--ink); }
+code { background: #eef2fb; border-radius: 5px; padding: 1px 6px; font-size: 12px; }
+.log { font-size: 11.5px; font-family: Consolas, monospace; background: #f7f9fd; border: 1px solid var(--line); border-radius: 10px; padding: 10px; max-height: 200px; overflow: auto; }
+.log .r { color: #b3122f; }
+.ok { color: #0e8a5c; font-weight: 700; }
+.bad { color: #d9302c; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel left">
+    <h1>微信渠道模拟器</h1>
+    <p class="sub">本页向 <code>POST /wechat/webhook</code> 发送<b>与微信服务器完全相同的 XML 报文</b>,并解析公众号格式回复 —— 即真实渠道的端到端验证。需通过编排服务访问(当前页面)。</p>
+    <div class="phone">
+      <div class="chat-head">工银颐享 · 长辈守护</div>
+      <div class="chat" id="chat">
+        <div class="msg sys">模拟微信用户「oSim_长辈家属」与公众号的对话</div>
+      </div>
+      <div class="chat-input">
+        <input id="inp" placeholder="输入要发给公众号的消息…">
+        <button onclick="sendText()">发送</button>
+      </div>
+    </div>
+    <div class="h3">快捷场景</div>
+    <div class="quick">
+      <button class="qbtn2" onclick="sendText('查一下余额')">📊 查余额</button>
+      <button class="qbtn2" onclick="sendText('群里说投养老项目每月返大钱稳赚')">🚨 涉诈话术</button>
+      <button class="qbtn2" onclick="sendVoice('我的定期存款什么时候到期')">🎙 语音消息(已转文字)</button>
+      <button class="qbtn2" onclick="sendVoice('')">🎙 无法识别的语音</button>
+      <button class="qbtn2" onclick="sendEvent('subscribe')">➕ 模拟关注</button>
+      <button class="qbtn2" onclick="sendImage()">🖼 图片消息</button>
+      <label style="font-size:12px;color:var(--sub);align-self:center"><input type="checkbox" id="showRaw"> 显示原始XML</label>
+    </div>
+    <div class="h3">服务器验证(GET echostr)</div>
+    <div class="quick" style="align-items:center">
+      <label style="font-size:12px;color:var(--sub)">Token <input id="wxToken" value="icbc2026" style="width:110px;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12px"></label>
+      <button class="qbtn2" onclick="verify(true)">✅ 正确签名验证</button>
+      <button class="qbtn2" onclick="verify(false)">❌ 错误签名(应 403)</button>
+    </div>
+    <div class="raw" id="verifyOut">点上方按钮测试微信服务器配置时的 URL 有效性验证…</div>
+  </div>
+  <div class="panel right">
+    <div class="h3" style="margin-top:0">真实公众号接入 4 步</div>
+    <div class="step">
+      <b>① 内网穿透</b>(把本机 8787 暴露到公网):<br>
+      <code>cpolar http 8787</code> 或 natapp,得到 <code>https://xxx.cpolar.io</code><br><br>
+      <b>② 公众号后台配置</b>:公众平台 → 设置与开发 → 基本配置 → 服务器配置<br>
+      URL: <code>https://xxx.cpolar.io/wechat/webhook</code><br>
+      Token: 与启动服务时的 <code>WECHAT_TOKEN</code> 一致<br>
+      消息加解密:选<b>明文模式</b><br><br>
+      <b>③ 带验签启动服务</b>:<br>
+      <code>WECHAT_TOKEN=你的Token node server/server.js</code><br><br>
+      <b>④ 启用</b>并关注公众号,发消息即走同一套风控/知识/适老引擎。<br>
+      推荐先用<b>公众平台测试号</b>(扫码即得,无需认证)练通全流程。
+    </div>
+    <div class="h3">渠道消息日志(最近 100 条)</div>
+    <div class="log" id="log">尚无消息。发送一条试试。</div>
+  </div>
+</div>
+<script>
+let msgId = Date.now() * 1000;
+const $ = s => document.querySelector(s);
+function bubble(cls, text) {
+  const d = document.createElement("div");
+  d.className = "msg " + cls;
+  d.textContent = text;
+  $("#chat").appendChild(d);
+  $("#chat").scrollTop = $("#chat").scrollHeight;
+}
+function buildXml(content, type, extra) {
+  msgId++;
+  const t = Math.floor(Date.now() / 1000);
+  return `<xml><ToUserName><![CDATA[gh_icbc_yixiang]]></ToUserName><FromUserName><![CDATA[oSim_elderFamily]]></FromUserName><CreateTime>${t}</CreateTime><MsgType><![CDATA[${type}]]></MsgType>${extra || ""}<Content><![CDATA[${content}]]></Content><MsgId>${msgId}</MsgId></xml>`;
+}
+async function post(xml, label) {
+  bubble("me", label || xmlGet(xml, "Content") || xmlGet(xml, "MsgType"));
+  try {
+    const sig = await signParams();
+    const res = await fetch(`/wechat/webhook?signature=${sig.signature}&timestamp=${sig.timestamp}&nonce=${sig.nonce}`, { method: "POST", headers: { "Content-Type": "application/xml" }, body: xml });
+    const raw = await res.text();
+    bubble("bot", raw === "success" ? "(无需回复)" : xmlGet(raw, "Content") || "(空回复)");
+    if (document.getElementById("showRaw").checked) bubble("sys", "回复XML: " + raw);
+  } catch (e) {
+    bubble("sys", "请求失败:" + e.message + "(请确认通过 node server/server.js 访问本页)");
+  }
+  refreshLog();
+}
+function sendText(t) { const v = t || $("#inp").value.trim(); if (!v) return; $("#inp").value = ""; post(buildXml(v, "text"), v); }
+function sendVoice(rec) { const label = rec ? "[语音] " + rec : "[语音] (无法识别)"; post(buildXml("", "voice", `<Recognition><![CDATA[${rec}]]></Recognition><Format><![CDATA[amr]]></Format>`), label); }
+function sendEvent(ev) { msgId++; const t = Math.floor(Date.now() / 1000); const xml = `<xml><ToUserName><![CDATA[gh_icbc_yixiang]]></ToUserName><FromUserName><![CDATA[oSim_elderFamily]]></FromUserName><CreateTime>${t}</CreateTime><MsgType><![CDATA[event]]></MsgType><Event><![CDATA[${ev}]]></Event></xml>`; post(xml, "[关注事件]"); }
+function sendImage() { post(buildXml("", "image", "<PicUrl><![CDATA[http://example.com/a.jpg]]></PicUrl>"), "[图片]"); }
+function xmlGet(xml, tag) { const m = xml.match(new RegExp("<" + tag + ">(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</" + tag + ">")); return m ? m[1] : ""; }
+function wxToken() { return document.getElementById("wxToken").value.trim(); }
+function signParams() {
+  const ts = String(Math.floor(Date.now() / 1000)), nonce = "sim" + Math.floor(Math.random() * 1e6);
+  const s = [wxToken(), ts, nonce].sort().join("");
+  return sha1(s).then(h => ({ signature: h, timestamp: ts, nonce }));
+}
+async function verify(ok) {
+  const ts = String(Math.floor(Date.now() / 1000)), nonce = "demo";
+  const sig = ok ? await sha1([wxToken(), ts, nonce].sort().join("")) : "bad signature";
+  const url = `/wechat/webhook?signature=${sig}&timestamp=${ts}&nonce=${nonce}&echostr=hello_wechat`;
+  const res = await fetch(url);
+  const text = await res.text();
+  $("#verifyOut").textContent = `GET ${url}\n→ HTTP ${res.status}\n→ 响应: ${text}\n→ ${res.ok && text === "hello_wechat" ? "✅ 验证通过(微信服务器将确认 URL 有效)" : "❌ 验证失败(微信会提示 Token 校验失败)"}`;
+}
+async function sha1(s) {
+  const buf = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+async function refreshLog() {
+  try {
+    const d = await (await fetch("/api/wechat-log")).json();
+    $("#log").innerHTML = d.length ? d.map(x => `<div>${x.time} <span class="${x.risk ? "bad" : "ok"}">${x.intent}${x.risk && x.intent !== "风控拦截" ? " · 风控拦截" : ""}</span> « ${x.text} »</div>`).join("") : "尚无消息。";
+  } catch (e) {}
+}
+document.getElementById("inp").addEventListener("keydown", e => { if (e.key === "Enter") sendText(); });
+refreshLog();
+</script>
+</body>
+</html>
