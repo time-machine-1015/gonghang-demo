@@ -176,6 +176,8 @@ body {
 .vd-text b { font-size: 17px; color: var(--ink); }
 .vd-text span { font-size: 12.5px; color: #2563eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vd-text span:empty { display: none; }
+.dock-navbtn { flex: none; border: 0; background: #e8f0ff; color: #1d4ed8; font-size: 15px; font-weight: 800; padding: 10px 14px; border-radius: 999px; cursor: pointer; }
+.dock-navbtn:active { transform: scale(.95); }
 
 .repeat-fab { position: absolute; right: 16px; bottom: 176px; width: 74px; height: 74px; border-radius: 50%; border: 0; background: linear-gradient(145deg, var(--brand-2), var(--brand)); color: #fff; font-size: 16px; font-weight: 800; line-height: 1.3; cursor: pointer; box-shadow: 0 10px 24px rgba(200, 16, 46, .5); z-index: 30; }
 .phone.kid .repeat-fab { display: none; }

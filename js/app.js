@@ -33,6 +33,7 @@ const state = {
   funnel: RiskModel.funnel(),
   modelCv: RiskModel.crossValidate(5),
   kidFilter: "all",
+  navAuto: false,
 };
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -153,7 +154,9 @@ const KID_TABS = [["khome", "首页"], ["kevents", "预警"], ["kplan", "养老�
 function goto(id, opts = {}) {
   if (state.role === "elder") state.pageElder = id; else state.pageKid = id;
   render();
-  if (state.role === "elder" && NAV[id] && opts.announce !== false) {
+  // 语音导航:仅自动演示模式(由按钮触发)或首次打开的欢迎播报;
+    // 常规浏览时页面切换不自动播报,由「听这页」按钮按需触发
+  if (state.role === "elder" && state.navAuto && NAV[id] && opts.announce !== false) {
     say(NAV[id].here + NAV[id].next);
   }
   if (id === "product" && !opts.quiet) {
@@ -205,8 +208,8 @@ function armIdleNav() {
   if (state.role !== "elder" || !state.voiceOn || !state.booted) return;
   idleNavTimer = setTimeout(() => {
     if (Date.now() < (state.speakingUntil || 0)) { armIdleNav(); return; }
-    const nav = NAV[page()];
-    if (nav) say("您在这一页停了一会儿。" + nav.here + " " + nav.next, { slow: true });
+    // 停留时只给视觉提示,不自动出声;长辈按「听这页」才重新播报
+    toast("停了一会儿?点话筒旁的「听这页」,我把这页再讲一遍");
     armIdleNav();
   }, IDLE_NAV_MS);
 }
@@ -686,12 +689,14 @@ function doDepositConfirm() {
   state.depositDone = true;
   logLine("good", "[业务] 长辈完成个人养老金模拟缴存 12000 元");
   goto("depositDone");
+  say(NAV.depositDone.here + " " + NAV.depositDone.next, { slow: true });
 }
 function doTransferFinal() {
   closeModal();
   const c = CONTACTS[state.transferPayee.idx];
   addRiskEvent({ title: "向陌生对象完成大额转账", brief: `向“${c.name}”转出 ${state.transferAmount} 元(已二次确认)`, ai: "属事前行为预警:系统只告知“发生了什么、可能是什么”,不下结论、不阻断账户。", advice: "先关心后求证:问问对方是谁、怎么认识的。如果老人支支吾吾或说“别管”,高度警惕,协助拨打 96110。" });
   goto("transferDone");
+  say(NAV.transferDone.here + " " + NAV.transferDone.next, { slow: true });
 }
 function doCallDone() {
   closeModal();
@@ -735,6 +740,11 @@ const ACTS = {
   },
   kfilter(d) { state.kidFilter = d.f; render(); },
   qualitySel(d) { state.plan.quality = +d.i; render(); },
+  navPage() {
+    const nav = NAV[page()];
+    if (nav) say(nav.here + " " + nav.next, { slow: true });
+    else toast("这一页暂无语音导航");
+  },
   mockAnomaly() {
     addRiskEvent({ title: "账户异常访问预警", brief: "检测到非常用城市的设备登录您的手机银行(演示)", ai: "异地登录 + 新设备组合是账户被冒用的典型信号,已经银行风控规则复核后同步。", advice: "先打电话确认是不是父亲本人在操作;不是的话,马上协助改密码并拨打 95588 冻结账户。" });
     say("您的账户刚在另一个城市被登录。如果是您本人操作,就没有关系;不是的话,马上告诉我,我帮您改密码。", { slow: true });
@@ -745,7 +755,10 @@ const ACTS = {
     say("您好,这里是工商银行语音提醒服务,播报您的三条重要提醒。第一条,今年存进个人养老金账户能少交个税,每年最多一万二,年底前记得办。第二条,您那笔二十万定期,明年八月二十号到期,到时候不用跑网点,手机上点一下就行。第三条,等您退休以后,养老金可以按月领,也可以一次取,有疑问打九五五八八。祝您生活愉快,再见。", { slow: true });
   },
   say(text) {},
-  sayAssets() { goto("assets"); },
+  sayAssets() {
+    goto("assets");
+    say(NAV.assets.here + " " + NAV.assets.next, { slow: true });
+  },
   sayAll() {
     say("您一共有三笔钱,总计大约三十五万二千,都以保本为主。第一笔,个人养老金账户,五万二,存钱还能少交税;第二笔,定期存款二十万,明年八月二十号到期;第三笔,养老储蓄十万,随时能取。", { slow: true });
   },
@@ -844,7 +857,10 @@ const ACTS = {
       sendChat(t);
     }, () => { btn.classList.remove("rec"); btn.textContent = "说"; });
   },
-  openCard(d) { goto("cardView"); },
+  openCard(d) {
+    goto("cardView");
+    say(NAV.cardView.here + " " + NAV.cardView.next, { slow: true });
+  },
   call(d) {
     const map = {
       son: ["儿子 张伟", "先聊聊家常,再说那笔钱的事,老人更愿意听。"],
@@ -1194,6 +1210,7 @@ const AUTO = { on: false, token: 0 };
 function autoStop() {
   AUTO.on = false;
   AUTO.token++;
+  state.navAuto = false;
   closeModal();
   toast("演示已停止");
   logLine("event", "[自动演示] 已停止");
@@ -1201,6 +1218,7 @@ function autoStop() {
 async function autoDemo() {
   if (AUTO.on) { toast("演示正在进行中"); return; }
   AUTO.on = true;
+  state.navAuto = true; // 自动演示由按钮发起,演示期间恢复逐页播报
   const my = ++AUTO.token;
   const step = async (desc, ms) => {
     if (!AUTO.on || my !== AUTO.token) return false;
@@ -1271,6 +1289,7 @@ async function autoDemo() {
   goto("home");
   if (!await step("全链路演示完成", 2000)) return;
   AUTO.on = false;
+  state.navAuto = false;
   logLine("good", "[自动演示] 全流程完成");
   toast("演示完成");
 }
