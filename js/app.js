@@ -24,7 +24,7 @@ const state = {
   booted: false,
   navCount: 0,
   repeatCount: 0,
-  plan: { age: 28, incomeM: 18000, spendM: 9000, saved: 250000, dependM: 3000, pillar2: true, gap: null, tax: null, versions: [] },
+  plan: { age: 28, incomeM: 18000, spendM: 9000, saved: 250000, dependM: 3000, pillar2: true, gap: null, tax: null, quality: null, versions: [] },
   quiz: { step: 0, right: 0, answered: null, done: false, active: false },
   memos: [],
   appointments: [],
@@ -80,6 +80,7 @@ function animEq() {
   bar.classList.remove("paused");
   eq.classList.add("on");
   const est = Math.min(12000, state.lastSay.length * 260 / Math.max(0.4, state.rate));
+  state.speakingUntil = Date.now() + est + 800;
   animEq._t = setTimeout(() => { eq.classList.remove("on"); bar.classList.add("idle"); }, est);
 }
 function pauseIndicator(on) {
@@ -179,6 +180,7 @@ function render() {
   if (state.role === "kid" && p === "kevents") state.events.forEach(e => (e.seen = true));
   updateTabs();
   pauseIndicator(state.role === "elder" && !state.voiceOn);
+  armIdleNav();
 }
 
 function updateTabs() {
@@ -193,6 +195,22 @@ function updateTabs() {
     return `<button class="tab ${cur === id ? "on" : ""}" data-act="tab" data-id="${id}"${cur === id ? ' aria-current="page"' : ""}>${name}${dot}</button>`;
   }).join("");
 }
+
+/* 停留自动重新导航(方案书 4.1.1):长辈在当前页停留约 18 秒未操作,
+   系统像导航一样"从当前界面继续"重新播报,而不是要求重走原路径 */
+const IDLE_NAV_MS = 18000;
+let idleNavTimer = null;
+function armIdleNav() {
+  clearTimeout(idleNavTimer);
+  if (state.role !== "elder" || !state.voiceOn || !state.booted) return;
+  idleNavTimer = setTimeout(() => {
+    if (Date.now() < (state.speakingUntil || 0)) { armIdleNav(); return; }
+    const nav = NAV[page()];
+    if (nav) say("您在这一页停了一会儿。" + nav.here + " " + nav.next, { slow: true });
+    armIdleNav();
+  }, IDLE_NAV_MS);
+}
+document.addEventListener("click", () => { if (state.role === "elder") armIdleNav(); });
 
 /* ---------------- elder screens ---------------- */
 const SCREENS = {
@@ -371,6 +389,7 @@ const SCREENS = {
           <button class="btn ok" style="font-size:21px" data-act="sayMemo" data-id="${i}">▶ 听孩子说</button>
           <button class="btn" style="margin-top:8px;font-size:17px;min-height:54px" data-act="memoDel" data-id="${i}">不用了,删掉</button>
         </div>`).join("")}
+      <button class="btn ok" style="font-size:20px" data-act="callRemind">📞 电话播报提醒(模拟 95588 来电)</button>
       <button class="btn" data-act="remOff">关闭全部通知</button>`;
   },
 
@@ -386,6 +405,7 @@ const SCREENS = {
       </div>
       ${state.auth ? `<div class="banner okb"><b>已开启(${esc(state.authTime)})。</b>孩子只有“看风险提醒”的权限,不能查流水、不能动账户。</div>` : `<div class="banner info">现在没开启。不开,也不影响您用语音导航、听钱的大白话,所有功能照常。</div>`}
       <button class="btn" style="font-size:22px" data-act="tab" data-id="reminders">看重要提醒</button>
+      <button class="btn ghost" style="font-size:18px;min-height:56px" data-act="mockAnomaly">演示:模拟账户异地登录预警</button>
       <div class="card">
         <h4>我的语音</h4>
         <label class="field">语速(慢一些听得清)<input type="range" min="0.5" max="1.2" step="0.05" value="${state.rate}" data-inp="rate"></label>
@@ -570,6 +590,12 @@ const SCREENS = {
         </div>
         <p style="font-size:13px;margin-top:8px">仍有缺口 <b style="color:var(--brand)">${fmtWan(g.gap)}</b></p>
         <div class="banner warn" style="padding:12px;font-size:14px">建议:每年个人养老金缴存 <b>${g.suggest} 元</b>(第三支柱),按月结余 ${fmtWan(g.surplus)}/年 推演最快 <b>${g.short}</b> 补齐缺口。</div>
+        <div class="rep-list" style="margin-top:10px">
+          <p><span>税前月收入</span><b>${fmtNum(p.incomeM)} 元</b></p>
+          <p><span>生活支出 + 月供/赡养</span><b>${fmtNum(p.spendM + p.dependM)} 元</b></p>
+          <p><span>每月可结余(家庭预算约束)</span><b class="${g.surplus > 0 ? "" : "bad"}">${fmtNum(g.surplus / 12)} 元</b></p>
+          <p><span>建议月缴存个人养老金</span><b>${Math.round(g.suggest / 12)} 元(年缴 ${g.suggest} 元)</b></p>
+        </div>
       </div>` : ""}
       ${t ? `
       <div class="card">
@@ -578,6 +604,22 @@ const SCREENS = {
         <div class="big-out">缴存满 12000 元/年,预计当年少缴个税 <b>${t.save} 元</b><br><span style="font-size:12px;color:var(--sub)">实际相当于花 ${12000 - t.save} 元锁定 12000 元养老储备</span></div>
         <p style="font-size:12px;color:var(--sub);margin-top:6px">边际税率 ≥3% 即存钱有税收收益;收入越高节税越明显。税率档位为估算,以年度汇算清缴为准。</p>
       </div>` : ""}
+      <div class="card">
+        <h4>品质养老 · 三支柱统筹推演(模拟参考)</h4>
+        <p style="font-size:13px">养老不只是“存够钱”。选一个期望的生活方式,看看品质部分还需要多少储备:</p>
+        <div class="chips" style="margin-top:6px">${QUALITY_TIERS.map((q, i) => `<button class="chip ${state.plan.quality === i ? "sel" : ""}" data-act="qualitySel" data-i="${i}">${q.label}</button>`).join("")}</div>
+        ${state.plan.quality != null ? (() => {
+          const q = QUALITY_TIERS[state.plan.quality];
+          const years = Math.max(1, 60 - p.age);
+          const extra = q.extra * 12 * Math.pow(1.04, years) * 25;
+          return `<div class="big-out" style="margin-top:10px">品质增量储备需求约 <b>${fmtWan(extra)}</b>${g ? `,原缺口 ${fmtWan(g.gap)} → 总缺口约 <b>${fmtWan(g.gap + extra)}</b>` : ""}<br><span style="font-size:12px;color:var(--sub)">${q.note}</span></div>`;
+        })() : `<p style="font-size:12.5px;color:var(--sub);margin-top:8px">点上方档位开始推演;结果为模拟参考,不构成投资建议。</p>`}
+      </div>
+      <div class="card">
+        <h4>中立养老政策科普(零营销)</h4>
+        ${POLICY_KB.map(k => `<div style="padding:7px 0;border-bottom:1px dashed var(--line)"><b style="font-size:13.5px">${k.t}</b><p style="font-size:12.5px;margin-top:3px">${k.d}</p></div>`).join("")}
+        <p style="font-size:11.5px;color:var(--sub);margin-top:6px">政策科普不构成投资建议,以人社部与工行官方口径为准。</p>
+      </div>
       <div class="step">
         <div class="step-head"><span class="step-num">↻</span>人生状态变了,方案跟着变</div>
         <div class="chips">${LIFE_EVENTS.map(ev => `<button class="chip" data-act="lifeEvent" data-k="${ev.k}">${ev.label}</button>`).join("")}</div>
@@ -692,6 +734,16 @@ const ACTS = {
     }, 80);
   },
   kfilter(d) { state.kidFilter = d.f; render(); },
+  qualitySel(d) { state.plan.quality = +d.i; render(); },
+  mockAnomaly() {
+    addRiskEvent({ title: "账户异常访问预警", brief: "检测到非常用城市的设备登录您的手机银行(演示)", ai: "异地登录 + 新设备组合是账户被冒用的典型信号,已经银行风控规则复核后同步。", advice: "先打电话确认是不是父亲本人在操作;不是的话,马上协助改密码并拨打 95588 冻结账户。" });
+    say("您的账户刚在另一个城市被登录。如果是您本人操作,就没有关系;不是的话,马上告诉我,我帮您改密码。", { slow: true });
+    toast("已演示:账户异常预警");
+  },
+  callRemind() {
+    openModal(`<h3>📞 95588 语音来电</h3><p>正在为您电话播报 ${REMINDERS.length} 条重要提醒,内容与「重要提醒」页一致;来电为低打扰兜底渠道,随时可挂断。</p><p style="color:var(--sub);font-size:13px">本演示不产生真实通话。</p><button class="btn ok" data-mact="close">知道了,挂断</button>`);
+    say("您好,这里是工商银行语音提醒服务,播报您的三条重要提醒。第一条,今年存进个人养老金账户能少交个税,每年最多一万二,年底前记得办。第二条,您那笔二十万定期,明年八月二十号到期,到时候不用跑网点,手机上点一下就行。第三条,等您退休以后,养老金可以按月领,也可以一次取,有疑问打九五五八八。祝您生活愉快,再见。", { slow: true });
+  },
   say(text) {},
   sayAssets() { goto("assets"); },
   sayAll() {
