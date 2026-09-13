@@ -293,3 +293,85 @@ h2.page-title { font-size: 24px; padding: 4px 2px 0; color: var(--ink); letter-s
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ================================================================
+   子女端 v2 · 「守护工作台」
+   定位:使用者是年轻人 —— 高信息密度、宫格导航、可筛选、可复杂操作;
+   与长辈端的"大字单列"形成刻意的代际差异。
+   ================================================================ */
+.phone.kid .screen { font-size: 13px; gap: 9px; padding: 11px 12px 14px; }
+.phone.kid .card { border-radius: 14px; padding: 12px 13px; }
+.phone.kid .card h4 { font-size: 14px; margin-bottom: 7px; }
+.phone.kid .card p { font-size: 12.5px; line-height: 1.7; }
+.phone.kid h2.page-title { font-size: 18px; padding: 0 1px; }
+
+/* 顶部守护状态条(单行紧凑,替代长辈式大卡) */
+.kd-head { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--k-line); border-radius: 14px; padding: 9px 12px; box-shadow: 0 1px 2px rgba(20, 34, 68, .04), 0 4px 14px rgba(20, 34, 68, .05); }
+.kd-avatar { flex: none; width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(150deg, #2b5ce6, #1c40b8); color: #fff; font-size: 17px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(36, 86, 224, .3); }
+.kd-name { font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.kd-sub { font-size: 11px; color: #7c86a0; margin-top: 1px; }
+.kd-badge { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #0c7a52; background: #e5f7ee; border-radius: 999px; padding: 5px 10px; }
+.kd-badge i { width: 6px; height: 6px; border-radius: 50%; background: #17b579; }
+.kd-badge.off { color: #a35b00; background: #fdf1e0; }
+.kd-badge.off i { background: #f59e0b; }
+
+/* 指标 4 宫格 */
+.kd-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.kd-stat { background: #fff; border: 1px solid var(--k-line); border-radius: 12px; padding: 9px 4px 8px; text-align: center; box-shadow: 0 1px 2px rgba(20, 34, 68, .04); }
+.kd-stat .v { font-size: 17px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.kd-stat .v.warn { color: #d9302c; }
+.kd-stat .v.amber { color: #b97410; }
+.kd-stat .v.blue { color: #1d4ed8; }
+.kd-stat .l { font-size: 10px; color: #8a93a6; margin-top: 3px; letter-spacing: .5px; }
+
+/* 功能宫格 3 列(图标砖) */
+.kd-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.kd-cell { background: #fff; border: 1px solid var(--k-line); border-radius: 12px; padding: 10px 4px 8px; text-align: center; cursor: pointer; box-shadow: 0 1px 2px rgba(20, 34, 68, .04); transition: transform .1s, box-shadow .15s; }
+.kd-cell:active { transform: scale(.96); }
+.kd-cell:hover { box-shadow: 0 4px 12px rgba(20, 34, 68, .1); }
+.kd-cell .ico { width: 34px; height: 34px; margin: 0 auto 5px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #fff; }
+.kd-cell .t { font-size: 12px; font-weight: 700; color: var(--ink); }
+.kd-cell .d { font-size: 10px; color: #98a1b3; margin-top: 1px; }
+.kd-cell .num { position: relative; }
+.kd-cell .num::after { content: attr(data-n); position: absolute; top: -4px; right: -6px; min-width: 16px; height: 16px; border-radius: 8px; background: #d9302c; color: #fff; font-size: 10px; line-height: 16px; padding: 0 4px; font-weight: 700; }
+
+/* 区块标题行 */
+.kd-sec { display: flex; align-items: baseline; gap: 8px; padding: 2px 2px 0; }
+.kd-sec b { font-size: 13.5px; color: var(--ink); }
+.kd-sec .more { margin-left: auto; font-size: 11px; color: #7c86a0; }
+.kd-sec .more.click { color: #1d4ed8; font-weight: 700; cursor: pointer; }
+
+/* 分段筛选器(可交互) */
+.kd-seg { display: flex; background: #e9edf5; border-radius: 10px; padding: 3px; gap: 2px; }
+.kd-seg button { flex: 1; border: 0; background: transparent; font-size: 12px; padding: 7px 0; border-radius: 8px; color: #5a6b8f; cursor: pointer; font-weight: 600; }
+.kd-seg button.on { background: #fff; color: #1d4ed8; font-weight: 800; box-shadow: 0 1px 3px rgba(20, 34, 68, .14); }
+
+/* 概览 chips 行 */
+.kd-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.kd-chip2 { font-size: 11px; color: #43506b; background: #fff; border: 1px solid var(--k-line); border-radius: 999px; padding: 4px 10px; font-variant-numeric: tabular-nums; }
+.kd-chip2 b { font-weight: 800; }
+.kd-chip2.hot b { color: #d9302c; }
+.kd-chip2.ok b { color: #0e8a5c; }
+
+/* 事件卡(时间轴式,更紧凑) */
+.phone.kid .list-item { border-radius: 12px; padding: 11px 12px; gap: 5px; }
+.phone.kid .list-item .head b { font-size: 13.5px; }
+.phone.kid .list-item p { font-size: 12.3px; }
+
+/* 预警聚合条(首页用) */
+.kd-alert { display: flex; align-items: center; gap: 9px; background: #fdf1f2; border: 1px solid #f5d3d8; border-radius: 12px; padding: 10px 12px; cursor: pointer; }
+.kd-alert .ico { flex: none; width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(150deg, #e0183a, #b3122f); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.kd-alert .t { font-size: 13px; font-weight: 800; color: #8c1023; }
+.kd-alert .d { font-size: 11px; color: #a04a58; margin-top: 1px; }
+.kd-alert .arr { margin-left: auto; color: #c96; color: #c9777f; font-weight: 800; }
+
+/* kcare 分组锚点 */
+.kd-anchor { scroll-margin-top: 8px; }
+
+/* 报告键值行 + 权限说明条 */
+.rep-list p { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0; padding: 7px 0; border-bottom: 1px dashed var(--k-line); font-size: 12.5px; color: #45516b; }
+.rep-list p:last-child { border-bottom: 0; padding-bottom: 2px; }
+.rep-list p b { color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+.rep-list p b.bad { color: var(--warn); }
+.perm-note { display: flex; gap: 9px; align-items: flex-start; background: #edf2fb; border-radius: 12px; padding: 9px 12px; font-size: 11.5px; color: #5a6b8f; line-height: 1.65; }
+.perm-note svg { flex: none; margin-top: 2px; }

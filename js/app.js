@@ -1,5 +1,6 @@
 const $ = s => document.querySelector(s);
 const LOCK_SVG = '<svg viewBox="0 0 24 24" width="46" height="46" fill="#6b7486"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 1 1 6 0v3H9z"/></svg><br>';
+const SHIELD_SVG = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#5a6b8f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.4-3 8.5-7 10-4-1.5-7-5.6-7-10V6l7-3z"/><path d="M9.2 12.2l2 2 3.6-3.8"/></svg>';
 const state = {
   role: "elder",
   pageElder: "home",
@@ -31,6 +32,7 @@ const state = {
   pendingCall: null,
   funnel: RiskModel.funnel(),
   modelCv: RiskModel.crossValidate(5),
+  kidFilter: "all",
 };
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
@@ -412,49 +414,63 @@ const SCREENS = {
 
   /* ---------------- kid screens ---------------- */
   khome() {
-    const unread = state.auth ? state.events.filter(e => !e.seen).length : 0;
     const pending = state.events.filter(e => !e.status).length;
     return `
-      <div class="card hero">
-        <p>您在守护</p>
-        <div class="num" style="font-size:21px">父亲 张建国 · 72 岁</div>
-        <p>${state.auth ? "亲情守护已由父亲本人开启(" + esc(state.authTime) + ")" : "父亲尚未开启亲情守护"}</p>
+      <div class="kd-head">
+        <div class="kd-avatar">父</div>
+        <div style="min-width:0">
+          <div class="kd-name">父亲 张建国 · 72 岁</div>
+          <div class="kd-sub">${state.auth ? "亲情守护中 · " + esc(state.authTime) + " 由父亲本人开启" : "代际共享需父亲本人在长辈端开启"}</div>
+        </div>
+        ${state.auth ? `<span class="kd-badge"><i></i>守护中</span>` : `<span class="kd-badge off"><i></i>未开启</span>`}
       </div>
-      ${!state.auth ? `<div class="card"><p>代际共享必须由<b>长辈本人</b>在长辈端开启,子女不能代办。</p><button class="btn small ghost" style="margin-top:8px" data-act="kmockAuth">演示:模拟父亲刚刚本人开启授权</button></div>` : ""}
-      ${pending ? `<div class="card" style="border:2px solid var(--brand)"><h4>有 ${pending} 条风险提醒待处理</h4><p>越早沟通,损失越小。建议今天打个电话。</p><button class="btn small primary" style="margin-top:8px" data-act="tab" data-id="kevents">立即处理</button></div>`
-        : `<div class="banner okb" style="padding:12px"><b>暂无待处理风险</b>,一切正常。</div>`}
-      <div class="card points-bar">
-        <div><p style="font-size:12px">孝心积分</p><div class="val">${state.points}</div></div>
-        <p style="margin-left:auto;max-width:210px;font-size:12px">陪学反诈、处置预警、转发科普、共建备忘录都可积累</p>
+      ${!state.auth ? `<div class="card"><p>代际共享必须由<b>长辈本人</b>开启,子女不能代办;未开启不影响父亲使用全部基础功能。</p><button class="btn small ghost" style="margin-top:8px" data-act="kmockAuth">演示:模拟父亲刚刚本人开启授权</button></div>` : ""}
+      <div class="kd-stats">
+        <div class="kd-stat"><div class="v ${pending ? "warn" : ""}">${pending}</div><div class="l">待处理风险</div></div>
+        <div class="kd-stat"><div class="v amber">${state.points}</div><div class="l">孝心积分</div></div>
+        <div class="kd-stat"><div class="v blue">${state.navCount}</div><div class="l">语音服务/次</div></div>
+        <div class="kd-stat"><div class="v">${state.appointments.length}</div><div class="l">网点预约/单</div></div>
       </div>
+      ${pending ? `<div class="kd-alert" data-act="tab" data-id="kevents"><span class="ico">!</span><div style="min-width:0"><div class="t">有 ${pending} 条风险提醒待处理</div><div class="d">越早沟通,损失越小</div></div><span class="arr">›</span></div>`
+        : `<div class="banner okb"><b>暂无待处理风险</b>,父亲账户一切正常。</div>`}
+      <div class="kd-sec"><b>守护功能</b><span class="more">点图标直达对应模块</span></div>
+      <div class="kd-grid">
+        <button class="kd-cell" data-act="tab" data-id="kevents"><span class="ico ${pending ? "num" : ""}" data-n="${pending}" style="background:linear-gradient(150deg,#e0183a,#b3122f)">警</span><div class="t">预警中心</div><div class="d">漏斗 · 趋势</div></button>
+        <button class="kd-cell" data-act="tab" data-id="kplan"><span class="ico" style="background:linear-gradient(150deg,#3063ec,#1c44c2)">规</span><div class="t">养老规划</div><div class="d">缺口 · 税优</div></button>
+        <button class="kd-cell" data-act="tab" data-id="kcare"><span class="ico" style="background:linear-gradient(150deg,#17b579,#0e8a5c)">陪</span><div class="t">亲情陪护</div><div class="d">积分 · 反诈</div></button>
+        <button class="kd-cell" data-act="kgo" data-page="kcare" data-anchor="kd-appt"><span class="ico" style="background:linear-gradient(150deg,#0ea5b7,#0c7a8a)">约</span><div class="t">网点预约</div><div class="d">帮父亲跑腿</div></button>
+        <button class="kd-cell" data-act="kgo" data-page="kcare" data-anchor="kd-memo"><span class="ico" style="background:linear-gradient(150deg,#8b5cf6,#6d28d9)">备</span><div class="t">共建备忘</div><div class="d">${state.memos.length} 条在父亲端</div></button>
+        <button class="kd-cell" data-act="kgo" data-page="kcare" data-anchor="kd-gift"><span class="ico" style="background:linear-gradient(150deg,#f59e0b,#b45309)">兑</span><div class="t">权益兑换</div><div class="d">${state.gifts.length} 单已兑</div></button>
+      </div>
+      <div class="kd-sec"><b>父亲的一周守护报告</b><span class="more click" data-act="tab" data-id="kevents">查看预警 ›</span></div>
       <div class="card">
-        <h4>父亲的一周守护报告</h4>
-        <p>· 语音导航服务 <b>${state.navCount}</b> 次 · 重听 <b>${state.repeatCount}</b> 次</p>
-        <p>· 今年个人养老金${state.depositDone ? "已缴存 12000 元" : "<b style='color:var(--warn)'>尚未缴存</b>,可以提醒他"}</p>
-        <p>· 家庭备忘录共建:<b>${state.memos.length}</b> 条 · 网点预约:<b>${state.appointments.length}</b> 单</p>
-        <p>· 定期 20 万 <b>2027-08-20 到期</b>(已设双提醒)</p>
+        <div class="rep-list">
+          <p><span>语音导航 / 重听</span><b>${state.navCount} 次 / ${state.repeatCount} 次</b></p>
+          <p><span>今年个人养老金</span><b class="${state.depositDone ? "" : "bad"}">${state.depositDone ? "已缴存 12000 元" : "尚未缴存,可以提醒他"}</b></p>
+          <p><span>备忘录共建 / 网点预约</span><b>${state.memos.length} 条 / ${state.appointments.length} 单</b></p>
+          <p><span>定期 20 万到期</span><b>2027-08-20 · 已设双提醒</b></p>
+        </div>
       </div>
+      <div class="kd-sec"><b>父亲养老资产概览</b><span class="more">仅汇总 · 无流水</span></div>
       <div class="card">
-        <h4>父亲养老资产概览<span class="pill gray">仅汇总 · 无流水</span></h4>
         ${state.auth ? `
           <p>总额约 <b>35.2 万元</b>,以保本类为主</p>
-          <p style="font-size:12px;color:var(--sub)">个人养老金 ${state.depositDone ? "今年已满缴" : "未缴"} · 定期 20 万 · 养老储蓄 10 万</p>`
-        : `<p style="font-size:13px;color:var(--sub)">需父亲本人授权后查看,且仅展示汇总与到期提醒;撤回授权后本页立即不可见。</p>`}
+          <p style="font-size:11.5px;color:var(--sub)">个人养老金 ${state.depositDone ? "今年已满缴" : "未缴"} · 定期 20 万 · 养老储蓄 10 万</p>`
+        : `<p style="font-size:12.5px;color:var(--sub)">需父亲本人授权后查看,仅展示汇总与到期提醒;撤回授权后立即不可见。</p>`}
       </div>
-      <div class="btn-row">
-        <button class="btn primary" data-act="tab" data-id="kplan">我的养老规划</button>
-        <button class="btn ghost" data-act="tab" data-id="kcare">亲情陪护</button>
-      </div>
-      <p class="hr-note">权限边界:子女仅可查看风险事件与授权概览,无账户操作、无流水查询权限。</p>`;
+      <div class="perm-note">${SHIELD_SVG}<span>权限边界:子女仅可查看风险事件与授权概览,无账户操作、无流水查询权限。</span></div>`;
   },
 
   kevents() {
     if (!state.auth) {
-      return `<div class="lock">${LOCK_SVG}父亲尚未开启亲情守护<br>风险预警不会同步给您<br><br>不授权不影响父亲的长辈守护全部基础功能<br>(隐私最小化,长辈随时可撤回)</div>`;
+      return `<h2 class="page-title">风险预警</h2><div class="lock">${LOCK_SVG}父亲尚未开启亲情守护<br>风险预警不会同步给您<br><br>不授权不影响父亲的长辈守护全部基础功能<br>(隐私最小化,长辈随时可撤回)</div>`;
     }
     const pushed = state.events.length;
     const ai = state.funnel.first + pushed;
     const rechecked = state.funnel.passed + pushed;
+    const pendingN = state.events.filter(e => !e.status).length;
+    const doneN = pushed - pendingN;
+    const f = state.kidFilter || "all";
     const funnel = `
       <div class="card">
         <h4>误报过滤漏斗(双重校验)</h4>
@@ -474,16 +490,29 @@ const SCREENS = {
         <div class="trend-x">${days.map(d => `<span>${d}</span>`).join("")}</div>
         <p style="font-size:12px;color:var(--sub)">灰色为已过滤的低置信信号,今天 <b style="color:var(--brand)">${pushed}</b> 条高置信事件推送给您。</p>
       </div>`;
-    const list = state.events;
-    if (!list.length) {
-      return `<h2 class="page-title">风险预警</h2>${funnel}${trend}
+    const seg = `
+      <div class="kd-seg">
+        <button class="${f === "all" ? "on" : ""}" data-act="kfilter" data-f="all">全部 ${pushed}</button>
+        <button class="${f === "pending" ? "on" : ""}" data-act="kfilter" data-f="pending">待处理 ${pendingN}</button>
+        <button class="${f === "done" ? "on" : ""}" data-act="kfilter" data-f="done">已处理 ${doneN}</button>
+      </div>
+      <div class="kd-chips">
+        <span class="kd-chip2">本周信号 <b>${ai}</b></span>
+        <span class="kd-chip2 ok">已过滤 <b>${ai - rechecked}</b></span>
+        <span class="kd-chip2 hot">待处理 <b>${pendingN}</b></span>
+      </div>`;
+    if (!pushed) {
+      return `<h2 class="page-title">风险预警</h2>${seg}${funnel}${trend}
         <div class="banner okb"><b>目前一切正常。</b>系统只推这 5 类高危事件:疑似养老诈骗咨询 / 陌生大额转账 / 频繁浏览高风险产品 / 多次触发反诈预警 / 账户异常。</div>
-        <button class="btn small ghost" data-act="kmockTransfer">演示:模拟父亲正向陌生收款人转账 8 万</button>`;
+        <button class="btn small ghost" data-act="kmockTransfer">演示:模拟父亲正向陌生收款人转账 8 万</button>
+        <p class="hr-note">处置闭环:电话沟通 +20 积分 · 误报反馈 +10 积分,反馈回流风控模型。</p>`;
     }
+    const list = state.events.filter(e => f === "all" ? true : f === "pending" ? !e.status : !!e.status);
+    const empty = list.length ? "" : `<div class="banner okb" style="padding:10px;font-size:12.5px"><b>该筛选下暂无事件。</b></div>`;
     return `
-      <h2 class="page-title">风险预警(${list.length})</h2>
-      <div class="banner info" style="font-size:12.5px">本提示为行为风险参考,<b>不代表一定为诈骗</b>,仅供家庭沟通参考。所有事件经 AI 初筛 + 银行风控规则二次复核。</div>
-      ${funnel}${trend}
+      <h2 class="page-title">风险预警</h2>
+      ${seg}
+      ${empty}
       ${list.map((e, i) => `
         <div class="list-item" style="${e.status ? "opacity:.6" : "border-left:5px solid var(--brand)"}">
           <div class="head"><b>${esc(e.title)}</b>${e.status ? `<span class="pill gray">${esc(e.status)}</span>` : `<span class="pill risk">待处理</span>`}<span class="time">${esc(e.time)}</span></div>
@@ -491,10 +520,11 @@ const SCREENS = {
           <p><b>AI 通俗解读:</b>${esc(e.ai)}</p>
           <p><b>家庭沟通建议:</b>${esc(e.advice)}</p>
           <div class="btn-row" style="margin-top:4px">
-            <button class="btn small ok" data-act="kcall" data-id="${i}">打个电话聊聊</button>
-            <button class="btn small" data-act="kfalse" data-id="${i}">是误报,反馈</button>
+            <button class="btn small ok" data-act="kcall" data-id="${state.events.indexOf(e)}">打个电话聊聊</button>
+            <button class="btn small" data-act="kfalse" data-id="${state.events.indexOf(e)}">是误报,反馈</button>
           </div>
         </div>`).join("")}
+      ${funnel}${trend}
       <p class="hr-note">处置闭环:电话沟通 +20 积分 · 误报反馈 +10 积分,反馈回流风控模型。</p>`;
   },
 
@@ -562,17 +592,18 @@ const SCREENS = {
         <div><p style="font-size:12px">孝心积分</p><div class="val">${state.points}</div></div>
         <p style="margin-left:auto;max-width:220px;font-size:12px">「守护—互动—激励—再守护」闭环:完成亲情动作攒积分,兑换适老权益</p>
       </div>
+      <div class="kd-sec kd-anchor" id="kd-gift"><b>权益兑换</b><span class="more">${state.points} 分可用 · 适老权益</span></div>
       <div class="card">
-        <h4>权益兑换</h4>
         ${GIFTS.map(gf => `<div class="toggle-row" style="padding:6px 0">
           <div><b style="font-size:14px">${gf.name}</b> · <span style="font-size:12px;color:var(--sub)">${gf.desc}</span></div>
           <button class="btn small ${state.points >= gf.cost ? "primary" : ""}" ${state.points >= gf.cost ? "" : "disabled"} data-act="exchange" data-id="${gf.id}">${gf.cost} 分兑换</button>
         </div>`).join("")}
         ${state.gifts.length ? `<p style="font-size:12px;color:var(--ok)">已兑换:${state.gifts.map(esc).join(" · ")}</p>` : ""}
       </div>
+      <div class="kd-sec kd-anchor" id="kd-quiz"><b>陪学反诈 · 和父亲一起答题</b><span class="more">答完自动 +30 分</span></div>
       ${quizCardHtml()}
+      <div class="kd-sec kd-anchor" id="kd-memo"><b>家庭备忘录共建</b><span class="more">${state.auth ? "同步到父亲「重要提醒」" : "需父亲授权"}</span></div>
       <div class="card">
-        <h4>家庭备忘录共建${state.auth ? "" : '<span class="pill gray">需父亲授权</span>'}</h4>
         <p style="font-size:12px;color:var(--sub)">您添加的备忘会出现在父亲「重要提醒」里,标着“孩子记的”,他能听也能删。</p>
         ${state.auth ? `
           <input class="input p-in-memo" id="memoInput" placeholder="例如:12月10日带爸去测血压" data-inp="memo" aria-label="备忘内容" style="margin-top:8px">
@@ -580,16 +611,16 @@ const SCREENS = {
           ${state.memos.map((m, i) => `<div class="memo-row"><span>${esc(m.body)}</span><button class="btn small" data-act="memoDelK" data-id="${i}" style="min-height:44px;padding:6px 12px">撤回</button></div>`).join("")}`
         : `<p style="font-size:13px;color:var(--sub);margin-top:6px">父亲开启授权后,这里就可以和他共建备忘。</p>`}
       </div>
+      <div class="kd-sec kd-anchor" id="kd-send"><b>一键转发 · 长辈看得懂版</b><span class="more">长文变白话 + 语音</span></div>
       <div class="card">
-        <h4>一键转发 · 长辈看得懂版</h4>
         ${KID_CARDS.map(c => {
           const sent = state.cards.some(x => x.id === c.id);
           return `<div class="send-row"><div><b style="font-size:14px">${esc(c.title)}</b><span class="pill">${esc(c.type)}</span><p style="font-size:12px;color:var(--sub)">长文已改写为 ${c.body.length} 字短句 + 语音</p></div>
             <button class="btn small ${sent ? "" : "primary"}" ${sent ? "disabled" : ""} data-act="ksend" data-id="${c.id}">${sent ? "已发送" : "发"}</button></div>`;
         }).join("")}
       </div>
+      <div class="kd-sec kd-anchor" id="kd-appt"><b>网点兜底 · 帮父亲预约</b><span class="more">工单同步父亲端 + 网点后台</span></div>
       <div class="card">
-        <h4>网点兜底 · 帮父亲预约</h4>
         <p style="font-size:12px;color:var(--sub)">手机弄不明白的事,约到网点,柜员面对面讲;预约单父亲端和网点后台都能看到。</p>
         <select class="input p-in-sel" id="apptBranch" aria-label="选择网点">${APPT_BRANCHES.map(b => `<option>${b}</option>`).join("")}</select>
         <select class="input p-in-sel" id="apptService" style="margin-top:6px" aria-label="选择服务事项">${APPT_SERVICES.map(s => `<option>${s}</option>`).join("")}</select>
@@ -653,6 +684,14 @@ const ACTS = {
     } else goto(target);
   },
   tab(d) { goto(d.id); },
+  kgo(d) {
+    goto(d.page);
+    setTimeout(() => {
+      const el = document.getElementById(d.anchor);
+      if (el) el.scrollIntoView({ block: "start" });
+    }, 80);
+  },
+  kfilter(d) { state.kidFilter = d.f; render(); },
   say(text) {},
   sayAssets() { goto("assets"); },
   sayAll() {
